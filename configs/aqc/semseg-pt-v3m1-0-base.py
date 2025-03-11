@@ -1,23 +1,20 @@
-_base_ = [
-    "../_base_/default_runtime.py",
-    "../_base_/dataset/scannetpp.py",
-]
+_base_ = ["../_base_/default_runtime.py"]
 
-# misc custom setting
-batch_size = 12  # bs: total bs in all gpus
-num_worker = 24
-mix_prob = 0.8
-empty_cache = False
+# 基础设置
+batch_size = 12
+num_worker = 12
 enable_amp = True
 
-# model settings
+ignore_index = 0 # 根据任务需求调整
+
+# 模型设置
 model = dict(
     type="DefaultSegmentorV2",
-    num_classes=100,
+    num_classes=2,
     backbone_out_channels=64,
     backbone=dict(
         type="PT-v3m1",
-        in_channels=6,
+        in_channels=3,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(2, 2, 2, 6, 2),
@@ -30,110 +27,115 @@ model = dict(
         dec_patch_size=(1024, 1024, 1024, 1024),
         mlp_ratio=4,
         qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
         drop_path=0.3,
         shuffle_orders=True,
         pre_norm=True,
-        enable_rpe=False,
         enable_flash=True,
-        upcast_attention=False,
-        upcast_softmax=False,
-        cls_mode=False,
-        pdnorm_bn=False,
-        pdnorm_ln=False,
-        pdnorm_decouple=True,
-        pdnorm_adaptive=False,
-        pdnorm_affine=True,
-        pdnorm_conditions=("ScanNet", "S3DIS", "Structured3D"),
     ),
     criteria=[
-        dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
-        dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
+        dict(type="CrossEntropyLoss", loss_weight=1.0),
+        dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0),
     ],
 )
 
-# scheduler settings
-epoch = 800
+# 训练设置
+epoch = 300
 optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
 scheduler = dict(
     type="OneCycleLR",
-    max_lr=[0.006, 0.0006],
+    max_lr=0.006,
     pct_start=0.05,
     anneal_strategy="cos",
     div_factor=10.0,
     final_div_factor=1000.0,
 )
-param_dicts = [dict(keyword="block", lr=0.0006)]
 
-# dataset settings
-dataset_type = "ScanNetPPDataset"
-data_root = "data/scannetpp"
+# 数据集设置
+dataset_type = "aQcKITTIDataset"
+data_root = "data/aqc"
 
 data = dict(
-    num_classes=100,
-    ignore_index=-1,
+    num_classes=2,
+    ignore_index=ignore_index,
+    names=["spreader", "cell_guide"],
     train=dict(
-        type=dataset_type,
-        split="train_grid1mm_chunk6x6_stride3x3",
+        type="aQcKITTIDataset",
+        split=["train"],
         data_root=data_root,
         transform=[
-            dict(type="CenterShift", apply_z=True),
-            dict(
-                type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
-            ),
             dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.5),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.5),
             dict(type="RandomScale", scale=[0.9, 1.1]),
             dict(type="RandomFlip", p=0.5),
             dict(type="RandomJitter", sigma=0.005, clip=0.02),
-            dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
-            dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
-            dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
-            dict(type="ChromaticJitter", p=0.95, std=0.05),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.05,
                 hash_type="fnv",
                 mode="train",
+                keys=("coord", "segment"),
                 return_grid_coord=True,
             ),
-            dict(type="SphereCrop", point_max=204800, mode="random"),
-            dict(type="CenterShift", apply_z=False),
-            dict(type="NormalizeColor"),
+            dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", "normal"),
             ),
         ],
         test_mode=False,
+        ignore_index=ignore_index,
     ),
-    val=dict(
-        type=dataset_type,
-        split="val",
+    val=dict(  # 添加验证集配置
+        type="aQcKITTIDataset",
+        split=["val"],  # 验证集的分割名
         data_root=data_root,
         transform=[
-            dict(type="CenterShift", apply_z=True),
-            dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="train",
-                return_grid_coord=True,
-            ),
-            dict(type="CenterShift", apply_z=False),
-            dict(type="NormalizeColor"),
+            dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="test", keys=("coord", "segment")),
             dict(type="ToTensor"),
-            dict(
-                type="Collect",
-                keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", "normal"),
-            ),
+            dict(type="Collect", keys=("coord", "grid_coord", "segment")),
         ],
-        test_mode=False,
+        test_mode=False,  # 验证集通常采用测试模式
+        # test_cfg=dict(
+        #     voxelize=dict(
+        #         type="GridSample",  # ✅ 已注册的预处理类
+        #         grid_size=0.05,
+        #         hash_type="fnv",
+        #         mode="test",
+        #         return_grid_coord=True,  # ✅ 生成 grid_coord
+        #         keys=("coord",),
+        #     ),
+        #     crop =None,
+        #     post_transform=[
+        #         dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
+        #         dict(type="ToTensor"),
+        #         dict(type="Collect", keys=("coord", "grid_coord", "index")),  # ✅ 引用 grid_coord
+        #     ],
+        #     collate_fn=dict(type="default_collate"),  # ⭐ 处理列表数据
+        # ),
+        ignore_index=ignore_index,
     ),
+    # test=dict(
+    #     type="AQCDataset",
+    #     split="test",
+    #     data_root=data_root,
+    #     transform=[],  # ⚠️ 测试时不应用随机增强
+    #     test_mode=True,
+    #     test_cfg=dict(
+    #         voxelize=dict(
+    #             type="GridSample",  # ✅ 已注册的预处理类
+    #             grid_size=0.05,
+    #             hash_type="fnv",
+    #             mode="test",
+    #             return_grid_coord=True,  # ✅ 生成 grid_coord
+    #             keys=("coord",),
+    #         ),
+    #         post_transform=[
+    #             dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
+    #             dict(type="ToTensor"),
+    #             dict(type="Collect", keys=("coord", "grid_coord", "index")),  # ✅ 引用 grid_coord
+    #         ],
+    #         collate_fn=dict(type="default_collate"),  # ⭐ 处理列表数据
+    #     ),
+    #     ignore_index=ignore_index,
+    # ),
 )

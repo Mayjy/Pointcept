@@ -14,7 +14,7 @@ from .structure3d import Structured3DDataset
 from .semantic_kitti import SemanticKITTIDataset
 from .nuscenes import NuScenesDataset
 from .waymo import WaymoDataset
-
+from .aqc import aQcKITTIDataset
 # object
 from .modelnet import ModelNetDataset
 from .shapenet_part import ShapeNetPartDataset
