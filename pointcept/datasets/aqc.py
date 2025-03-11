@@ -15,8 +15,8 @@ class aQcKITTIDataset(DefaultDataset):
     def get_data_list(self):
         split2seq = dict(
             train=[0],  
-            val=[0],  
-            test=[0],  
+            val=[1],  
+            test=[2],  
         )
         if isinstance(self.split, str):
             seq_list = split2seq[self.split]
@@ -40,9 +40,8 @@ class aQcKITTIDataset(DefaultDataset):
     def get_data(self, idx):
         data_path = self.data_list[idx % len(self.data_list)]
         with open(data_path, "rb") as b:
-            scan = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
-        coord = scan[:, :3]
-        strength = scan[:, -1].reshape([-1, 1])
+            scan = np.fromfile(b, dtype=np.float32).reshape(-1, 3)  # 只读取 XYZ
+        coord = scan[:, :3]  # 只保留 XYZ
 
         label_file = data_path.replace("velodyne", "labels").replace(".bin", ".label")
         if os.path.exists(label_file):
@@ -50,11 +49,10 @@ class aQcKITTIDataset(DefaultDataset):
                 segment = np.fromfile(a, dtype=np.int32).reshape(-1)
                 segment = np.vectorize(self.learning_map.__getitem__)(segment).astype(np.int32)
         else:
-            segment = np.zeros(scan.shape[0]).astype(np.int32)
+            segment = np.full(scan.shape[0], self.ignore_index, dtype=np.int32)  # 其他类别填充 ignore_index
 
         data_dict = dict(
             coord=coord,
-            strength=strength,
             segment=segment,
             name=self.get_data_name(idx),
         )
@@ -71,19 +69,17 @@ class aQcKITTIDataset(DefaultDataset):
     @staticmethod
     def get_learning_map(ignore_index):
         """类别映射"""
-        learning_map = {
-            0: ignore_index,  # 无关项（忽略）
-            1: 0,  # spreader → 类别 0
-            2: 1,  # cell_guide → 类别 1
+        return {
+            0: ignore_index,  # 其他类别（0）忽略
+            1: 0,  # spreader → 0
+            2: 1,  # cell_guide → 1
         }
-        return learning_map
 
     @staticmethod
     def get_learning_map_inv(ignore_index):
         """反向类别映射"""
-        learning_map_inv = {
-            ignore_index: ignore_index,  # 无关项
-            0: 1,  # spreader
-            1: 2,  # cell_guide
+        return {
+            ignore_index: ignore_index,  # 其他类别仍然忽略
+            0: 1,  # 反向映射 0 → spreader (1)
+            1: 2,  # 反向映射 1 → cell_guide (2)
         }
-        return learning_map_inv
