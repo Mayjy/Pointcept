@@ -43,6 +43,9 @@ class aQcKITTIDataset(DefaultDataset):
             scan = np.fromfile(b, dtype=np.float32).reshape(-1, 3)  # 只读取 XYZ
         coord = scan[:, :3]  # 只保留 XYZ
 
+        # 将 strength 全部置为 0
+        strength = np.zeros((scan.shape[0], 1), dtype=np.float32)
+
         label_file = data_path.replace("velodyne", "labels").replace(".bin", ".label")
         if os.path.exists(label_file):
             with open(label_file, "rb") as a:
@@ -53,10 +56,12 @@ class aQcKITTIDataset(DefaultDataset):
 
         data_dict = dict(
             coord=coord,
+            strength=strength,  # 添加 strength
             segment=segment,
             name=self.get_data_name(idx),
         )
         return data_dict
+
 
     def get_data_name(self, idx):
         file_path = self.data_list[idx % len(self.data_list)]

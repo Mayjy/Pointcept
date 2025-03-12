@@ -1,8 +1,8 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # 基础设置
-batch_size = 12
-num_worker = 12
+batch_size = 6
+num_worker = 6
 enable_amp = True
 
 ignore_index = 0 # 根据任务需求调整
@@ -14,7 +14,7 @@ model = dict(
     backbone_out_channels=64,
     backbone=dict(
         type="PT-v3m1",
-        in_channels=3,
+        in_channels=4,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(2, 2, 2, 6, 2),
@@ -69,10 +69,10 @@ data = dict(
             dict(type="RandomJitter", sigma=0.005, clip=0.02),
             dict(
                 type="GridSample",
-                grid_size=0.05,
+                grid_size=0.5,
                 hash_type="fnv",
                 mode="train",
-                keys=("coord", "segment"),
+                keys=("coord", "segment", "strength"),
                 return_grid_coord=True,
             ),
             dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
@@ -80,6 +80,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
+                feat_keys=("coord", "strength"),
             ),
         ],
         test_mode=False,
@@ -90,9 +91,20 @@ data = dict(
         split=["val"],  # 验证集的分割名
         data_root=data_root,
         transform=[
-            dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="test", keys=("coord", "segment")),
+            dict(
+                type="GridSample", 
+                grid_size=0.5, 
+                hash_type="fnv", 
+                mode="test", 
+                keys=("coord", "segment", "strength"), 
+                return_grid_coord=True
+                ),
             dict(type="ToTensor"),
-            dict(type="Collect", keys=("coord", "grid_coord", "segment")),
+            dict(
+                type="Collect", 
+                keys=("coord", "grid_coord", "segment"),
+                feat_keys=("coord", "strength")
+                ),
         ],
         test_mode=False,  # 验证集通常采用测试模式
         # test_cfg=dict(
