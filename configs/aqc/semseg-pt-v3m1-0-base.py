@@ -4,6 +4,7 @@ _base_ = ["../_base_/default_runtime.py"]
 batch_size = 6
 num_worker = 6
 enable_amp = True
+#enable_amp = False
 
 ignore_index = 0 # 根据任务需求调整
 
@@ -28,7 +29,7 @@ model = dict(
         mlp_ratio=4,
         qkv_bias=True,
         drop_path=0.3,
-        shuffle_orders=True,
+        shuffle_orders=False,
         pre_norm=True,
         enable_flash=True,
     ),
@@ -69,7 +70,7 @@ data = dict(
             dict(type="RandomJitter", sigma=0.005, clip=0.02),
             dict(
                 type="GridSample",
-                grid_size=0.5,
+                grid_size=0.05,
                 hash_type="fnv",
                 mode="train",
                 keys=("coord", "segment", "strength"),
@@ -93,7 +94,7 @@ data = dict(
         transform=[
             dict(
                 type="GridSample", 
-                grid_size=0.5, 
+                grid_size=0.05, 
                 hash_type="fnv", 
                 mode="test", 
                 keys=("coord", "segment", "strength"), 
@@ -144,7 +145,11 @@ data = dict(
     #         post_transform=[
     #             dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
     #             dict(type="ToTensor"),
-    #             dict(type="Collect", keys=("coord", "grid_coord", "index")),  # ✅ 引用 grid_coord
+    #             dict(
+    #                 type="Collect", 
+    #                 keys=("coord", "grid_coord", "index"),
+    #                 feat_keys=("coord", "strength")
+    #             ),  # ✅ 引用 grid_coord
     #         ],
     #         collate_fn=dict(type="default_collate"),  # ⭐ 处理列表数据
     #     ),
