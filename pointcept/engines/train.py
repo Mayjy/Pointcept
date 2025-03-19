@@ -175,6 +175,11 @@ class Trainer(TrainerBase):
 
     def run_step(self):
         input_dict = self.comm_info["input_dict"]
+        # if "name" in input_dict:
+        #     print(f"Processing file: {input_dict['name']}")  # 这里打印点云文件名
+        # else:
+        #     print("Warning: No filename found in input_dict keys:", input_dict.keys())
+
         for key in input_dict.keys():
             if isinstance(input_dict[key], torch.Tensor):
                 input_dict[key] = input_dict[key].cuda(non_blocking=True)
