@@ -58,7 +58,7 @@ class aQcKITTIDataset(DefaultDataset):
             coord=coord,
             strength=strength,  # 添加 strength
             segment=segment,
-            #name=self.get_data_name(idx),
+            name=self.get_data_name(idx),
         )
         return data_dict
 
