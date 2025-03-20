@@ -1,8 +1,8 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # 基础设置
-batch_size = 10# 每个批次的样本数量
-num_worker = 10# 数据加载时使用的工作线程数量
+batch_size = 9# 每个批次的样本数量
+num_worker = 9# 数据加载时使用的工作线程数量
 #enable_amp = True # 是否启用自动混合精度
 enable_amp = False
 
