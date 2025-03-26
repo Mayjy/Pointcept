@@ -75,16 +75,16 @@ class aQcKITTIDataset(DefaultDataset):
     def get_learning_map(ignore_index):
         """类别映射"""
         return {
-            0: ignore_index,  # 其他类别（0）忽略
-            1: 0,  # spreader → 0
-            2: 1,  # cell_guide → 1
+            0: 0,  # 其他类别（0）忽略
+            1: 1,  # spreader → 0
+            2: 2,  # cell_guide → 1
         }
 
     @staticmethod
     def get_learning_map_inv(ignore_index):
         """反向类别映射"""
         return {
-            ignore_index: ignore_index,  # 其他类别仍然忽略
-            0: 1,  # 反向映射 0 → spreader (1)
-            1: 2,  # 反向映射 1 → cell_guide (2)
+            0: 0,  # 其他类别（0）忽略
+            1: 1,  # spreader → 0
+            2: 2,  # cell_guide → 1
         }
